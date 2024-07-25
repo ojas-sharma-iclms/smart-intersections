@@ -58,6 +58,7 @@ class Intersection:
         self.edge_names = [f"{id}.0", f"{id}.1", f"{id}.2", f"{id}.3"]
         self.edges = []
         self.stack = [[], [], [], []]
+        self.intersectionStack = []
 
         if self.typeIntersection == "three":
             pass
@@ -148,10 +149,13 @@ class RoadNetwork:
             if (object.type == "human") or (object.type == "autonomous"): # for each vehicle...
                 route = object.getOptimalRoute()
                 for node in route: # for each node on each vehicle's desired path...
-                    tempId = id = node.split(".", 1)[0]
-                    tempDir = id = node.split(".", 1)[1]
+                    tempId = node.split(".", 1)[0]
+                    tempDir = node.split(".", 1)[1]
                     tempDir = int(tempDir)
                     index = self.lookUp(tempId)
+                    if self.roadMap[index].type == "intersection": # add vehicle id to whole intersection stack
+                        if (object.id) not in self.roadMap[index].intersectionStack:
+                            self.roadMap[index].intersectionStack.append(object.id)
                     if (object.id not in self.roadMap[index].stack[tempDir]): # add vehicle id to stack if necessary
                         self.roadMap[index].stack[tempDir].append(object.id)
                 for track in self.roadMap:
@@ -159,6 +163,9 @@ class RoadNetwork:
                         tempStack = track.stack
                         counter = 0
                         for i in tempStack:
-                            if (object.id in i) and ((f"{track.id}.{counter}") not in route):
+                            if (object.id in i) and ((f"{track.id}.{counter}") not in route): # remove from stack if necessary
                                 i.remove(object.id)
-                                counter += 1
+                            counter += 1
+                        if track.type == "intersection": # remove from intersection stack if necessary
+                            if ((object.id in track.intersectionStack) and (((f"{track.id}.0") and (f"{track.id}.1") and (f"{track.id}.2") and (f"{track.id}.3")) not in route)):
+                                track.intersectionStack.remove(object.id)
