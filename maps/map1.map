@@ -1,0 +1,13 @@
+# source target target target etc.
+S1.1 R1.1
+R1.1 I1.3
+I1.0 R2.1
+R2.1 S2.0
+S2.1 R2.0
+R2.0 I1.1
+I1.2 R1.0
+R1.0 S1.0
+I1.1 R3.0
+R3.0 S3.0
+S3.1 R3.1
+R3.1 I1.2
