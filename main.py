@@ -57,6 +57,8 @@ map.plotMapGraph()
 
 test = Autonomous("V1", map, "S1.1", 0.66, "S3.0", 24, 30, -6, 2, 5, 50, 10, 0.05, 1, 0.2, 0.4, 0.1)
 map.roadMap.append(test)
+test2 = Human("V2", map, "S3.1", 0.45, "S2.0", 22, 30, -6, 2, 5, 50, 5, 0.05, 1, 0.2, 0.4, 0.1)
+map.roadMap.append(test2)
 
 #print(test.getOptimalRoute())
 #print(test.next)
@@ -64,4 +66,9 @@ map.roadMap.append(test)
 
 map.updateStacks() # must be called every timestep
 
+print(test.getPath())
 print(map.roadMap[map.lookUp("I1")].intersectionStack)
+print(map.roadMap[map.lookUp("I1")].stack)
+print("\n")
+print(test2.getPath())
+print(test2.getOptimalRoute())

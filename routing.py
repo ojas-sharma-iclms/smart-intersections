@@ -98,7 +98,7 @@ class RoadNetwork:
         for point in self.points:
             if point[0] == "R":
                 # road
-                self.roadMap.append(Road(point, "horizontal", [[incoming_neighbors[f"{point}.0"],outgoing_neighbors[f"{point}.0"]],[incoming_neighbors[f"{point}.1"],outgoing_neighbors[f"{point}.1"]]], 50))
+                self.roadMap.append(Road(point, "horizontal", [[incoming_neighbors[f"{point}.0"],outgoing_neighbors[f"{point}.0"]],[incoming_neighbors[f"{point}.1"],outgoing_neighbors[f"{point}.1"]]], 500))
             elif point[0] == "I":
                 # intersection
                 tempAdj = []
@@ -129,6 +129,33 @@ class RoadNetwork:
     def getOptimalRoute(self, source, destination):
         path_names = nx.shortest_path(self.roadNetwork, source, destination)
         return path_names
+    
+    def getPath(self, id, source, destination):
+        path_names = self.getOptimalRoute(source, destination)
+        next_object = "CLEAR"
+        clear = True
+        for node in path_names:
+            nodeId = node.split(".", 1)[0]
+            dir = node.split(".", 1)[1]
+            dir = int(dir)
+            stack = self.roadMap[self.lookUp(nodeId)].stack[dir]
+            if clear:
+                if stack[0] == id:
+                    clear = True
+                else:
+                    clear = False
+                    counter = 0
+                    for i in stack:
+                        if i == id:
+                            selfIndex = counter
+                        counter += 1
+                    next_object = stack[selfIndex - 1] # returns the id of the vehicle's next vehicle
+                    next_object_pos = self.roadMap[self.lookUp(next_object)].roadSection
+                    if next_object_pos != node: # make sure next vehicle is not just a pathing, and the vehicle is actually there
+                        next_object = node.split(".", 1)[0]
+        if next_object == "CLEAR":
+            next_object = path_names[-1].split(".", 1)[0]
+        return next_object
     
     def plotMapGraph(self):
         pos = nx.kamada_kawai_layout(self.roadNetwork)
@@ -167,5 +194,5 @@ class RoadNetwork:
                                 i.remove(object.id)
                             counter += 1
                         if track.type == "intersection": # remove from intersection stack if necessary
-                            if ((object.id in track.intersectionStack) and (((f"{track.id}.0") and (f"{track.id}.1") and (f"{track.id}.2") and (f"{track.id}.3")) not in route)):
+                            if ((object.id in track.intersectionStack) and (((f"{track.id}.0") or (f"{track.id}.1") or (f"{track.id}.2") or (f"{track.id}.3")) not in route)):
                                 track.intersectionStack.remove(object.id)

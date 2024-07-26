@@ -62,6 +62,10 @@ class Vehicle(RoadObject):
         direction = self.path[1].split(".", 1)[1]
         self.next = self.roadMap.lookUp(nextId)
         return self.path
+    
+    def getPath(self):
+        self.next_object = self.roadMap.getPath(self.id, self.roadSection, self.destination)
+        return self.next_object
 
 class Human(Vehicle):
     def __init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, c, human_reaction, autonomous_reaction, ah, bh):
