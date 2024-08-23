@@ -44,6 +44,8 @@ class Vehicle(RoadObject):
     def __init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, c, human_reaction, autonomous_reaction):
         self.destination = destination
         self.velocity = velocity
+        self.headway = 0
+        self.acceleration = 0
         self.vmax = vmax
         self.amin = amin
         self.amax = amax
@@ -88,6 +90,45 @@ class Vehicle(RoadObject):
     def getPath(self):
         self.next_object = self.roadMap.getPath(self.id, self.roadSection, self.destination)
         return self.next_object
+    
+    def getDistanceToEndOfSection(self):
+        road_id = self.roadMap.lookUp(self.roadSection.split(".", 1)[0])
+        length = self.roadMap.roadMap[road_id].length
+        return length - self.positionInSection
+    
+    def getHeadway(self):
+        next_object = self.getPath()
+        next_object_id = self.roadMap.lookUp(next_object)
+        if ((next_object[0] == "R") or (next_object[0] == "I") or (next_object[0] == "S")):
+            headway = self.getDistanceToEndOfSection()
+            onPath = True
+            counter = 1 # ignore the 0th term, as this is the section the car is in already
+            while onPath:
+                if self.path[counter].split(".", 1)[0] != next_object:
+                    headway += self.roadMap.roadMap[self.roadMap.lookUp(self.path[counter].split(".", 1)[0])].length
+                    counter += 1
+                else:
+                    onPath = False
+        elif next_object[0] == "V":
+            # cars are complicated
+            # need to check if the car is in the same section as the vehicle
+            section = self.roadMap.roadMap[next_object_id].roadSection
+            if self.roadSection == section:
+                # same section
+                headway = self.roadMap.roadMap[next_object_id].positionInSection - self.positionInSection
+            else:
+                # different sections
+                headway = self.getDistanceToEndOfSection()
+                onPath = True
+                counter = 1 # ignore the 0th term, as this is the section the car is in already
+                while onPath:
+                    if self.path[counter] != section:
+                        headway += self.roadMap.roadMap[self.roadMap.lookUp(self.path[counter].split(".", 1)[0])].length
+                        counter += 1
+                    else:
+                        onPath = False
+                headway += self.roadMap.roadMap[next_object_id].positionInSection
+        return headway
 
 class Human(Vehicle):
     def __init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, c, human_reaction, autonomous_reaction, ah, bh):

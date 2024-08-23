@@ -51,6 +51,7 @@ class Road:
 class Intersection:
     def __init__(self, id, orientation, adjacent, typeIntersection):
         self.id = id
+        self.length = 50 # each section of the intersection is 50m long??
         self.type = "intersection"
         self.orientation = orientation # eventually the orientation to be displayed on screen when map displayed (string, up/down/left/right)
         self.typeIntersection = typeIntersection
@@ -80,6 +81,7 @@ class Intersection:
 class EntryExit:
     def __init__(self, id, adjacent):
         self.id = id
+        self.length = 0
         self.type = "entry_exit"
         self.adjacent = adjacent
         self.stack = [[], []]

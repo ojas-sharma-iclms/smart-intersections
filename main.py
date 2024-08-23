@@ -37,8 +37,10 @@ humanReaction = 1
 autonomousReaction = 0.2
 ah = 0.2
 bh = 0.2
+yh = 0.5
 alpha = 1.2
 beta = 0.2
+gamma = 0.5
 vmax = 30
 hst = 5
 hgo = 100
@@ -55,9 +57,9 @@ print("\nSmart Intersections - Simulation of human-driven and autonomous vehicle
 map = RoadNetwork('map1')
 map.plotMapGraph()
 
-test = Autonomous("V1", map, "S1.1", 0.66, "S3.0", 24, 30, -6, 2, 5, 50, 10, 0.05, 1, 0.2, 0.4, 0.1)
+test = Autonomous("V1", map, "I1.3", 20, "S3.0", 24, 30, -6, 2, 5, 50, 10, 0.05, 1, 0.2, 0.4, 0.1)
 map.roadMap.append(test)
-test2 = Human("V2", map, "S3.1", 0.45, "S2.0", 22, 30, -6, 2, 5, 50, 5, 0.05, 1, 0.2, 0.4, 0.1)
+test2 = Human("V2", map, "S1.1", 0, "S3.0", 22, 30, -6, 2, 5, 50, 5, 0.05, 1, 0.2, 0.4, 0.1)
 map.roadMap.append(test2)
 
 #print(test.getOptimalRoute())
@@ -75,3 +77,8 @@ print(test2.getOptimalRoute())
 print("\n")
 print(test.turning)
 print(test2.turning)
+print(test2.getDistanceToEndOfSection())
+print("\n")
+print(test.getHeadway())
+print(test2.getHeadway())
+print(test.path)
