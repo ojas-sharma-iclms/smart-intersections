@@ -109,7 +109,7 @@ class Vehicle(RoadObject):
                     counter += 1
                 else:
                     onPath = False
-        elif next_object[0] == "V":
+        elif ((next_object[0] == "V")):
             # cars are complicated
             # need to check if the car is in the same section as the vehicle
             section = self.roadMap.roadMap[next_object_id].roadSection
@@ -128,18 +128,31 @@ class Vehicle(RoadObject):
                     else:
                         onPath = False
                 headway += self.roadMap.roadMap[next_object_id].positionInSection
+        headway = headway - self.vehicle_length
         return headway
+    
+    def velocityHeadwayFunction(self):
+        headway = self.getHeadway()
+        if (headway <= self.hst):
+            return 0
+        elif (headway >= self.hgo):
+            return self.vmax
+        elif ((headway < self.hgo) and (headway > self.hst)):
+            calc = ((self.vmax / 2) * (1 - np.cos(np.pi * ((headway - self.hst) / (self.hgo - self.hst)))))
+            return calc
 
 class Human(Vehicle):
-    def __init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, c, human_reaction, autonomous_reaction, ah, bh):
+    def __init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, c, human_reaction, autonomous_reaction, ah, bh, yh):
         self.ah = ah
         self.bh = bh
+        self.yh = yh
         self.type = "human"
         Vehicle.__init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, c, human_reaction, autonomous_reaction)
 
 class Autonomous(Vehicle):
-    def __init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, c, human_reaction, autonomous_reaction, alpha, beta):
+    def __init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, c, human_reaction, autonomous_reaction, alpha, beta, gamma):
         self.alpha = alpha
         self.beta = beta
+        self.gamma = gamma
         self.type = "autonomous"
         Vehicle.__init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, c, human_reaction, autonomous_reaction)
