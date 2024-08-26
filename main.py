@@ -45,10 +45,10 @@ vmax = 30
 hst = 5
 hgo = 100
 vehicle_length = 5
-c = 0.05
 amin = -6
 amax = 3
 stepsPerSecond = 50
+running = True
 
 # CODE
 
@@ -57,17 +57,33 @@ print("\nSmart Intersections - Simulation of human-driven and autonomous vehicle
 map = RoadNetwork('map1')
 map.plotMapGraph()
 
-test = Autonomous("V1", map, "I1.3", 20, "S3.0", 24, 30, -6, 2, 5, 50, 10, 0.05, 1, 0.2, 0.4, 0.1, 0.5)
-map.roadMap.append(test)
-test2 = Human("V2", map, "S1.1", 0, "S3.0", 22, 30, -6, 2, 5, 50, 5, 0.05, 1, 0.2, 0.4, 0.1, 0.5)
+test2 = Human("V2", map, "R1.1", 40, "S3.0", 22, 30, -6, 2, 5, 50, 5, 0.05, 1, 0.2, 0.4, 0.1, 0.5)
 map.roadMap.append(test2)
+test = Autonomous("V1", map, "R1.1", 20, "S3.0", 24, 30, -6, 2, 5, 50, 10, 0.05, 1, 0.2, 0.4, 0.1, 0.5)
+map.roadMap.append(test)
 
 #print(test.getOptimalRoute())
 #print(test.next)
 #print(map.roadMap[test.next].id)
 
-map.updateStacks() # must be called every timestep
+map.updateStacks()
+print(test.path)
+print(test.cascade())
 
+'''
+seconds = 0
+while running:
+    stepNum = 0
+    for stepNum in range(stepsPerSecond):
+        # to run every timestep
+        map.updateStacks()
+        for object in map.roadMap:
+            if ((object.type == "human") or (object.type == "autonomous")):
+                print(object.id)
+    seconds += 1
+'''
+
+'''
 print(test.getPath())
 print(map.roadMap[map.lookUp("I1")].intersectionStack)
 print(map.roadMap[map.lookUp("I1")].stack)
@@ -81,3 +97,4 @@ print(test2.getDistanceToEndOfSection())
 print("\n")
 print(test.velocityHeadwayFunction())
 print(test2.velocityHeadwayFunction())
+'''
