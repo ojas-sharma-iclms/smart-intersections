@@ -57,9 +57,9 @@ print("\nSmart Intersections - Simulation of human-driven and autonomous vehicle
 map = RoadNetwork('map1')
 map.plotMapGraph()
 
-test2 = Human("V2", map, "R1.1", 40, "S3.0", 22, 30, -6, 2, 5, 50, 5, 0.05, 1, 0.2, 0.4, 0.1, 0.5)
+test2 = Human("V2", map, "R1.1", 100, "S3.0", 22, 30, -6, 2, 5, 50, 5, 50, 1, 0.2, 0.4, 0.1, 0.5)
 map.roadMap.append(test2)
-test = Autonomous("V1", map, "R1.1", 20, "S3.0", 24, 30, -6, 2, 5, 50, 10, 0.05, 1, 0.2, 0.4, 0.1, 0.5)
+test = Autonomous("V1", map, "R1.1", 20, "S3.0", 24, 30, -6, 2, 5, 50, 10, 50, 1, 0.2, 0.4, 0.1, 0.5)
 map.roadMap.append(test)
 
 #print(test.getOptimalRoute())
@@ -69,6 +69,11 @@ map.roadMap.append(test)
 map.updateStacks()
 print(test.path)
 print(test.cascade())
+
+test.headwayHistorySigma.append(test.getHeadway())
+print(test.getHeadway())
+print(test.alpha)
+print(test.vehicle_length)
 
 '''
 seconds = 0
