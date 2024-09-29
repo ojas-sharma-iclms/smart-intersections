@@ -57,49 +57,103 @@ print("\nSmart Intersections - Simulation of human-driven and autonomous vehicle
 map = RoadNetwork('map1')
 map.plotMapGraph()
 
-test2 = Human("V2", map, "R1.1", 100, "S3.0", 22, 30, -6, 2, 5, 50, 5, 50, 1, 0.2, 0.4, 0.1, 0.5)
-map.roadMap.append(test2)
-test = Autonomous("V1", map, "R1.1", 20, "S3.0", 24, 30, -6, 2, 5, 50, 10, 50, 1, 0.2, 0.4, 0.1, 0.5)
+# make sure each vehicle has a different id!!
+
+test = Human("V1", map, "R1.1", 200, "S3.0", 0, 30, -6, 2, 5, 50, 10, 50, 1, 0.2, 0.4, 0.1, 0.5)
 map.roadMap.append(test)
 
-#print(test.getOptimalRoute())
-#print(test.next)
-#print(map.roadMap[test.next].id)
+test2 = Human("V2", map, "R1.1", 35, "S3.0", 30, 30, -6, 2, 5, 50, 10, 50, 1, 0.2, 0.4, 0.1, 0.5)
+map.roadMap.append(test2)
 
-map.updateStacks()
+#test2 = Human("V2", map, "R1.1", 5, "S3.0", 22, 30, -6, 2, 5, 50, 5, 50, 1, 0.2, 0.4, 0.1, 0.5)
+#map.roadMap.append(test2)
+
+'''map.updateStacks()
 print(test.path)
-print(test.cascade())
+#print(test.cascade())
 
-test.headwayHistorySigma.append(test.getHeadway())
 print(test.getHeadway())
-print(test.alpha)
+#print(test.alpha)
 print(test.vehicle_length)
 
-'''
+print(test.getPath())
+print(test.path)
+print(test.roadSection)'''
+
+#print(test.alpha)
+
+#test2.optimalVelocity()
+#print(test2.acceleration)
+
+# ----- MAIN LOOP -----
+
 seconds = 0
+
+map.updateStacks() # first initialise the map, so getHeadway() can be called
+
+for object in map.roadMap: # set the headway history to current headway, AFTER initialising the map
+    if ((object.type == "human") or (object.type == "autonomous")):
+        object.updateHeadwayHistory(object.getHeadway())
+
 while running:
     stepNum = 0
     for stepNum in range(stepsPerSecond):
         # to run every timestep
-        map.updateStacks()
+        #map.updateStacks()
+
+        for object in map.roadMap:
+            if (object.type == "autonomous"):
+                object.cascade()
         for object in map.roadMap:
             if ((object.type == "human") or (object.type == "autonomous")):
-                print(object.id)
-    seconds += 1
-'''
+                object.getHeadway()
+        for object in map.roadMap:
+            if ((object.type == "human") or (object.type == "autonomous")):
+                object.optimalVelocity()
+        for object in map.roadMap:
+            if ((object.type == "human") or (object.type == "autonomous")):
+                object.updateVelocity()
+        for object in map.roadMap:
+            if ((object.type == "human") or (object.type == "autonomous")):
+                object.updatePositions()
+                object.saveData()
+                print(object.id, object.velocityError(), object.velocityDelta(), object.accelerationDelta())
 
-'''
-print(test.getPath())
-print(map.roadMap[map.lookUp("I1")].intersectionStack)
-print(map.roadMap[map.lookUp("I1")].stack)
-print("\n")
-print(test2.getPath())
-print(test2.getOptimalRoute())
-print("\n")
-print(test.turning)
-print(test2.turning)
-print(test2.getDistanceToEndOfSection())
-print("\n")
-print(test.velocityHeadwayFunction())
-print(test2.velocityHeadwayFunction())
-'''
+        map.updateStacks() # update the map for the NEXT timestep
+
+    usr = input()
+
+    if (usr == 'end'):
+        running = False
+    if (usr == 'show'):
+        running = False
+        seconds += 1
+
+        plt.close('all')
+        fig, ax = plt.subplots(
+        ncols=1, nrows=3, figsize=(10, 5.4), layout="constrained", sharex=True
+    )
+        velocityData = []
+        accelData = []
+        headwayData = []
+
+        for object in map.roadMap:
+            if ((object.type == "human") or (object.type == "autonomous")):
+                velocityData.append(object.velocityData)
+                accelData.append(object.accelerationData)
+                headwayData.append(object.headwayData)
+
+        stepsPassed = seconds * stepsPerSecond
+        for VELreading in velocityData:
+            ax[0].plot(range(stepsPassed), VELreading)
+        for ACCreading in accelData:
+            ax[1].plot(range(stepsPassed), ACCreading)
+        for HEAreading in headwayData:
+            ax[2].plot(range(stepsPassed), HEAreading)
+        ax[0].set_ylabel("Velocity")
+        ax[1].set_ylabel("Acceleration")
+        ax[2].set_ylabel("Headway")
+        plt.xlabel("Timesteps")
+        plt.show()
+    
+    seconds += 1

@@ -39,14 +39,12 @@ class Road:
 
     def joinSection(self, id, direction):
         self.stack[int(direction)].append(id)
-        pass
 
     def leaveSection(self, id, direction):
         if self.stack[int(direction)][0] == id:
             self.stack[int(direction)].pop(0)
         else:
             print(f"something weird has happened when removing {id} from the stack of {self.id}")
-        pass
 
 class Intersection:
     def __init__(self, id, orientation, adjacent, typeIntersection):
@@ -59,6 +57,7 @@ class Intersection:
         self.edge_names = [f"{id}.0", f"{id}.1", f"{id}.2", f"{id}.3"]
         self.edges = []
         self.stack = [[], [], [], []]
+        self.inStack = [[], [], [], []]
         self.intersectionStack = []
 
         if self.typeIntersection == "three":
@@ -78,6 +77,15 @@ class Intersection:
         self.newEdges = [(self.edge_names[3], self.edge_names[0]), (self.edge_names[0], self.edge_names[1]), (self.edge_names[1], self.edge_names[2]), (self.edge_names[2], self.edge_names[3])]
         self.edges += self.newEdges
 
+    def joinSection(self, id, direction):
+        self.inStack[int(direction)].append(id)
+
+    def leaveSection(self, id, direction):
+        if self.inStack[int(direction)][0] == id:
+            self.inStack[int(direction)].pop(0)
+        else:
+            print(f"something weird has happened when removing {id} from the stack of {self.id}")
+
 class EntryExit:
     def __init__(self, id, adjacent):
         self.id = id
@@ -85,6 +93,15 @@ class EntryExit:
         self.type = "entry_exit"
         self.adjacent = adjacent
         self.stack = [[], []]
+
+    def joinSection(self, id, direction):
+        self.stack[int(direction)].append(id)
+
+    def leaveSection(self, id, direction):
+        if self.stack[int(direction)][0] == id:
+            self.stack[int(direction)].pop(0)
+        else:
+            print(f"something weird has happened when removing {id} from the stack of {self.id}")
 
 class RoadNetwork:
     def __init__(self, filename):
@@ -130,6 +147,8 @@ class RoadNetwork:
 
     def getOptimalRoute(self, source, destination):
         path_names = nx.shortest_path(self.roadNetwork, source, destination)
+        endNode = path_names[-1]
+        path_names.append(endNode) # dodgy
         return path_names
     
     def getPath(self, id, source, destination):
@@ -162,7 +181,7 @@ class RoadNetwork:
     def plotMapGraph(self):
         pos = nx.kamada_kawai_layout(self.roadNetwork)
         nx.draw(self.roadNetwork, pos, with_labels=True)
-        plt.savefig("roadNetwork.png")
+        plt.savefig("maps/roadNetwork.png")
         plt.clf()
 
     def lookUp(self, id):
@@ -198,3 +217,12 @@ class RoadNetwork:
                         if track.type == "intersection": # remove from intersection stack if necessary
                             if ((object.id in track.intersectionStack) and (((f"{track.id}.0") or (f"{track.id}.1") or (f"{track.id}.2") or (f"{track.id}.3")) not in route)):
                                 track.intersectionStack.remove(object.id)
+    
+    def reorderStacks(self):
+        for object in self.roadMap:
+            if (object.type == "intersection"):
+                newStack = [[], [], [], []]
+                for section in object.stack:
+                    for vehicle in section:
+                        # find distance to said intersection
+                        pass
