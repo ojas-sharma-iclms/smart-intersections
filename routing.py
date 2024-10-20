@@ -105,7 +105,9 @@ class EntryExit:
 
 class RoadNetwork:
     def __init__(self, filename):
+        self.mapEmpty = False
         self.roadMap = []
+        self.initialRoadMap = [] # constant
         self.points = []
         self.roadNetwork = nx.read_adjlist(f"maps/{filename}.map", comments='#', delimiter=None, create_using=nx.DiGraph, nodetype=None, encoding='utf-8')
         incoming_neighbors = {node: list(self.roadNetwork.predecessors(node)) for node in self.roadNetwork.nodes()}
@@ -145,11 +147,17 @@ class RoadNetwork:
         self.routeMap = nx.floyd_warshall(self.roadNetwork)
         self.routeMatrix = {a: dict(b) for a, b in self.routeMap.items()}
 
+    def finaliseRoadMap(self):
+        self.initialRoadMap = self.roadMap.copy()
+
     def getOptimalRoute(self, source, destination):
         path_names = nx.shortest_path(self.roadNetwork, source, destination)
         endNode = path_names[-1]
         path_names.append(endNode) # dodgy
         return path_names
+    
+    def removeFromMap(self, id):
+        self.roadMap.pop(self.lookUp(id))
     
     def getPath(self, id, source, destination):
         path_names = self.getOptimalRoute(source, destination)
@@ -172,7 +180,7 @@ class RoadNetwork:
                         counter += 1
                     next_object = stack[selfIndex - 1] # returns the id of the vehicle's next vehicle
                     next_object_pos = self.roadMap[self.lookUp(next_object)].roadSection
-                    if next_object_pos != node: # make sure next vehicle is not just a pathing, and the vehicle is actually there
+                    if next_object_pos.split(".", 1)[0] != node.split(".", 1)[0]: # make sure next vehicle is not just a pathing, and the vehicle is actually there
                         next_object = node.split(".", 1)[0]
         if next_object == "CLEAR":
             next_object = path_names[-1].split(".", 1)[0]
@@ -193,8 +201,10 @@ class RoadNetwork:
         return index
 
     def updateStacks(self):
+        mapContainsVehicles = False
         for object in self.roadMap:
             if (object.type == "human") or (object.type == "autonomous"): # for each vehicle...
+                mapContainsVehicles = True
                 route = object.getOptimalRoute()
                 for node in route: # for each node on each vehicle's desired path...
                     tempId = node.split(".", 1)[0]
@@ -217,6 +227,11 @@ class RoadNetwork:
                         if track.type == "intersection": # remove from intersection stack if necessary
                             if ((object.id in track.intersectionStack) and (((f"{track.id}.0") or (f"{track.id}.1") or (f"{track.id}.2") or (f"{track.id}.3")) not in route)):
                                 track.intersectionStack.remove(object.id)
+        if not(mapContainsVehicles):
+            self.mapEmpty = True
+
+    def mapStatus(self): # check if all vehicles have left the map
+        return self.mapEmpty
     
     def reorderStacks(self):
         for object in self.roadMap:

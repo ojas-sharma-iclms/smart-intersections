@@ -51,6 +51,7 @@ class Vehicle(RoadObject):
         self.amax = amax
         self.hst = hst
         self.hgo = hgo
+        self.onMap = True # is the vehicle still on the map?
         self.turning = [] # whether the vehicle will need to turn at any intersections en-route
         self.vehicle_length = vehicle_length
         self.stepsPerSecond = stepsPerSecond
@@ -97,10 +98,16 @@ class Vehicle(RoadObject):
         self.headwayHistorySigma = [headway for x in range(round(self.stepsPerSecond * self.autonomous_reaction))]
     
     def saveData(self):
-        self.roadSectionData.append(self.roadSection)
-        self.headwayData.append(self.headway)
-        self.velocityData.append(self.velocity)
-        self.accelerationData.append(self.acceleration)
+        if (self.onMap == True):
+            self.roadSectionData.append(self.roadSection)
+            self.headwayData.append(self.headway)
+            self.velocityData.append(self.velocity)
+            self.accelerationData.append(self.acceleration)
+        else:
+            self.roadSectionData.append("NOT ON MAP")
+            self.headwayData.append(np.nan)
+            self.velocityData.append(np.nan)
+            self.accelerationData.append(np.nan)
 
     def getTurns(self):
         pathIds = []
@@ -227,11 +234,17 @@ class Vehicle(RoadObject):
             # joins next section
             diff = self.positionInSection + velocityStep - section_length
             # leave current section
-            self.roadMap.roadMap[self.roadMap.lookUp(section.split(".", 1)[0])].joinSection(self.id, section.split(".", 1)[1])
+            self.roadMap.roadMap[self.roadMap.lookUp(section.split(".", 1)[0])].leaveSection(self.id, section.split(".", 1)[1])
             # join next section
-            self.roadMap.roadMap[self.roadMap.lookUp(next_section.split(".", 1)[0])].joinSection(self.id, next_section.split(".", 1)[1])
-            self.roadSection = next_section
-            self.positionInSection = diff
+            if next_section[0] == "S":
+                self.roadMap.roadMap[self.roadMap.lookUp(next_section.split(".", 1)[0])].leaveSection(self.id, next_section.split(".", 1)[1]) # leave the entry/exit too!
+                self.roadMap.removeFromMap(self.id) # remove from map at end of journey
+                self.onMap = False
+            else:
+                self.roadMap.roadMap[self.roadMap.lookUp(next_section.split(".", 1)[0])].joinSection(self.id, next_section.split(".", 1)[1])
+                self.roadSection = next_section
+                self.positionInSection = diff
+            print(f"Vehicle {self.id} has left section {section} and joined section {next_section}")
 
 class Human(Vehicle):
     def __init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, stepsPerSecond, human_reaction, autonomous_reaction, ah, bh, yh):
@@ -316,19 +329,18 @@ class Autonomous(Vehicle):
                 calc += 0
             elif ((type == "autonomous") or (type == "human")):
                 temp = self.roadMap.roadMap[next_id].getVelocitySigma()
-                '''if tempCount == len(self.vehiclesSeen):
+                if tempCount == len(self.vehiclesSeen):
                     multiplier = 1 / ((self.beta)**(tempCount-1))
                 else:
                     multiplier = (self.beta-1) / ((self.beta)**(tempCount))
-                calc += (multiplier * temp)'''
-                calc += (self.beta * temp)
+                calc += (multiplier * temp)
             elif (type == "intersection"):
                 calc += 0
             elif (type == "road"):
                 print("HOW IS THE NEXT STOPPABLE OBJECT A ROAD??!!?")
                 calc += 0
             tempCount += 1
-        diff = self.getVelocitySigma() - calc
+        diff = calc - self.getVelocitySigma()
         return diff
 
     def accelerationDelta(self):
@@ -341,28 +353,32 @@ class Autonomous(Vehicle):
                 calc += 0
             elif ((type == "autonomous") or (type == "human")):
                 temp = self.roadMap.roadMap[next_id].getAccelerationSigma()
-                '''if tempCount == len(self.vehiclesSeen):
+                if tempCount == len(self.vehiclesSeen):
                     multiplier = 1 / ((self.gamma)**(tempCount-1))
                 else:
                     multiplier = (self.gamma-1) / ((self.gamma)**(tempCount))
-                calc += (multiplier * temp)'''
-                calc += (self.gamma * temp)
+                calc += (multiplier * temp)
             elif (type == "intersection"):
                 calc += 0
             elif (type == "road"):
                 print("HOW IS THE NEXT STOPPABLE OBJECT A ROAD??!!?")
                 calc += 0
             tempCount += 1
-        diff = self.getAccelerationSigma() - calc
+        diff = ((calc - self.getAccelerationSigma()) * self.accelerationDeltaSign())
         return diff
+    
+    def accelerationDeltaSign(self):
+        return 1
 
     def cascade(self):
         if (self.roadSection[0] == "I"):
             self.vehiclesSeen = []
+            self.vehiclesOnPath = []
         else:
             nextIntersectionFound = False
             tempPath = self.path
             cascadePath = []
+            self.vehiclesOnPath = []
             tempCount = 0
             while not nextIntersectionFound:
                 if tempPath[tempCount][0] != "I":

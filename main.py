@@ -59,36 +59,20 @@ map.plotMapGraph()
 
 # make sure each vehicle has a different id!!
 
-test = Human("V1", map, "R1.1", 200, "S3.0", 0, 30, -6, 2, 5, 50, 10, 50, 1, 0.2, 0.4, 0.1, 0.5)
+test = Human("V1", map, "R1.1", 300, "S3.0", 0, 30, -6, 2, 5, 50, 10, 50, 1, 0.2, 0.4, 0.1, 0.5)
 map.roadMap.append(test)
 
-test2 = Human("V2", map, "R1.1", 35, "S3.0", 30, 30, -6, 2, 5, 50, 10, 50, 1, 0.2, 0.4, 0.1, 0.5)
+test2 = Human("V2", map, "R1.1", 200, "S2.0", 30, 30, -6, 2, 5, 50, 10, 50, 1, 0.2, 0.4, 0.1, 0.5)
 map.roadMap.append(test2)
 
-#test2 = Human("V2", map, "R1.1", 5, "S3.0", 22, 30, -6, 2, 5, 50, 5, 50, 1, 0.2, 0.4, 0.1, 0.5)
-#map.roadMap.append(test2)
+testAutonomous = Autonomous("V3", map, "R1.1", 40, "S3.0", 0, 30, -6, 2, 5, 50, 10, 50, 1, 0.2, 0.4, 2, 2)
+map.roadMap.append(testAutonomous)
 
-'''map.updateStacks()
-print(test.path)
-#print(test.cascade())
-
-print(test.getHeadway())
-#print(test.alpha)
-print(test.vehicle_length)
-
-print(test.getPath())
-print(test.path)
-print(test.roadSection)'''
-
-#print(test.alpha)
-
-#test2.optimalVelocity()
-#print(test2.acceleration)
+map.finaliseRoadMap()
 
 # ----- MAIN LOOP -----
 
 seconds = 0
-
 map.updateStacks() # first initialise the map, so getHeadway() can be called
 
 for object in map.roadMap: # set the headway history to current headway, AFTER initialising the map
@@ -98,8 +82,6 @@ for object in map.roadMap: # set the headway history to current headway, AFTER i
 while running:
     stepNum = 0
     for stepNum in range(stepsPerSecond):
-        # to run every timestep
-        #map.updateStacks()
 
         for object in map.roadMap:
             if (object.type == "autonomous"):
@@ -116,8 +98,9 @@ while running:
         for object in map.roadMap:
             if ((object.type == "human") or (object.type == "autonomous")):
                 object.updatePositions()
+        for object in map.initialRoadMap:
+            if ((object.type == "human") or (object.type == "autonomous")):
                 object.saveData()
-                print(object.id, object.velocityError(), object.velocityDelta(), object.accelerationDelta())
 
         map.updateStacks() # update the map for the NEXT timestep
 
@@ -125,7 +108,7 @@ while running:
 
     if (usr == 'end'):
         running = False
-    if (usr == 'show'):
+    if ((usr == 'show') or (map.mapEmpty)):
         running = False
         seconds += 1
 
@@ -137,7 +120,7 @@ while running:
         accelData = []
         headwayData = []
 
-        for object in map.roadMap:
+        for object in map.initialRoadMap:
             if ((object.type == "human") or (object.type == "autonomous")):
                 velocityData.append(object.velocityData)
                 accelData.append(object.accelerationData)
