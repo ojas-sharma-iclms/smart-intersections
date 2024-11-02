@@ -41,7 +41,7 @@ class RoadObject():
         self.roadMap = roadMap
 
 class Vehicle(RoadObject):
-    def __init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, stepsPerSecond, human_reaction, autonomous_reaction):
+    def __init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, stepsPerSecond, human_reaction, autonomous_reaction, acceleration_smoothing):
         self.destination = destination
         self.velocity = velocity
         self.headway = 0
@@ -51,6 +51,7 @@ class Vehicle(RoadObject):
         self.amax = amax
         self.hst = hst
         self.hgo = hgo
+        self.c = acceleration_smoothing
         self.onMap = True # is the vehicle still on the map?
         self.turning = [] # whether the vehicle will need to turn at any intersections en-route
         self.vehicle_length = vehicle_length
@@ -58,14 +59,18 @@ class Vehicle(RoadObject):
         self.human_reaction = human_reaction
         self.autonomous_reaction = autonomous_reaction
         self.path = []
+        self.absolutePosition = positionInSection
         self.next = None
 
         self.velocityData = []
         self.accelerationData = []
         self.headwayData = []
         self.roadSectionData = []
+        self.absolutePositionData = []
 
         RoadObject.__init__(self, id, roadMap, roadSection, positionInSection)
+
+        self.route = roadSection + destination
 
         self.headwayHistoryTau = [0 for x in range(round(self.stepsPerSecond * self.human_reaction))]
         self.headwayHistorySigma = [0 for x in range(round(self.stepsPerSecond * self.autonomous_reaction))]
@@ -103,11 +108,13 @@ class Vehicle(RoadObject):
             self.headwayData.append(self.headway)
             self.velocityData.append(self.velocity)
             self.accelerationData.append(self.acceleration)
+            self.absolutePositionData.append(self.absolutePosition)
         else:
             self.roadSectionData.append("NOT ON MAP")
             self.headwayData.append(np.nan)
             self.velocityData.append(np.nan)
             self.accelerationData.append(np.nan)
+            self.absolutePositionData.append(np.nan)
 
     def getTurns(self):
         pathIds = []
@@ -206,7 +213,19 @@ class Vehicle(RoadObject):
         v_error = self.velocityError()
         v_delta = self.velocityDelta()
         a_delta = self.accelerationDelta()
-        self.acceleration = (v_error + v_delta + a_delta)
+        a = (v_error + v_delta + a_delta)
+
+        if (a <= self.amin - self.c): # smoothing function for acceleration
+            self.acceleration = self.amin
+        elif a < self.amin + self.c:
+            self.acceleration = a + ((self.amin - a + self.c) ** 2 / (4 * self.c))
+        elif a <= self.amax - self.c:
+            self.acceleration = a
+        elif a < self.amax + self.c:
+            self.acceleration = a - ((self.amax - a - self.c) ** 2 / (4 * self.c))
+        else:
+            self.acceleration = self.amax
+
         # update delays
         self.accelerationHistoryTau.insert(0, self.acceleration)
         self.accelerationHistorySigma.insert(0, self.acceleration)
@@ -223,6 +242,7 @@ class Vehicle(RoadObject):
 
     def updatePositions(self):
         velocityStep = self.velocity / self.stepsPerSecond
+        self.absolutePosition += velocityStep
         section = self.roadSection
         next_section = self.path[1] # must be run AFTER self.getHeadway()
 
@@ -247,12 +267,12 @@ class Vehicle(RoadObject):
             print(f"Vehicle {self.id} has left section {section} and joined section {next_section}")
 
 class Human(Vehicle):
-    def __init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, stepsPerSecond, human_reaction, autonomous_reaction, ah, bh, yh):
+    def __init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, stepsPerSecond, human_reaction, autonomous_reaction, ah, bh, yh, acceleration_smoothing):
         self.ah = ah
         self.bh = bh
         self.yh = yh
         self.type = "human"
-        Vehicle.__init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, stepsPerSecond, human_reaction, autonomous_reaction)
+        Vehicle.__init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, stepsPerSecond, human_reaction, autonomous_reaction, acceleration_smoothing)
     
     def velocityError(self):
         headway = self.getHeadwayTau()
@@ -280,9 +300,6 @@ class Human(Vehicle):
             calc = 0
         return (self.bh * calc)
     
-    def accelerationDeltaSign(self):
-        return 1
-    
     def accelerationDelta(self):
         next_object = self.getPath()
         next_id = self.roadMap.lookUp(next_object)
@@ -291,22 +308,25 @@ class Human(Vehicle):
         elif (next_object[0] == "V"):
             next_acceleration = self.roadMap.roadMap[next_id].getAccelerationTau()
             calc = next_acceleration - self.getAccelerationTau()
+            if ((self.roadMap.roadMap[next_id].acceleration <= 0) and (self.getAccelerationTau() > 0)): # sign function g(stuff)
+                calc = calc * -1
         elif (next_object[0] == "I"):
             calc = 0
         elif (next_object[0] == "R"):
             print("HOW IS THE NEXT STOPPABLE OBJECT A ROAD??!!?")
             calc = 0
-        return (self.yh * calc * self.accelerationDeltaSign())
+        return (self.yh * calc)
 
 class Autonomous(Vehicle):
-    def __init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, stepsPerSecond, human_reaction, autonomous_reaction, alpha, beta, gamma):
+    def __init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, stepsPerSecond, human_reaction, autonomous_reaction, alpha, beta, gamma, acceleration_smoothing):
         self.alpha = alpha
         self.beta = beta
         self.gamma = gamma
+        self.k = 2 # must be greater than 1; the higher the number, the less that vehicles further away matter
         self.type = "autonomous"
         self.vehiclesSeen = []
         self.vehiclesOnPath = []
-        Vehicle.__init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, stepsPerSecond, human_reaction, autonomous_reaction)
+        Vehicle.__init__(self, id, roadMap, roadSection, positionInSection, destination, velocity, vmax, amin, amax, hst, hgo, vehicle_length, stepsPerSecond, human_reaction, autonomous_reaction, acceleration_smoothing)
     
     def velocityError(self):
         headway = self.getHeadwaySigma()
@@ -319,56 +339,99 @@ class Autonomous(Vehicle):
         diff = calc - self.getVelocitySigma()
         return (self.alpha * diff)
     
+    def velocityDeltaSimple(self):
+        next_object = self.getPath()
+        next_id = self.roadMap.lookUp(next_object)
+        if (next_object[0] == "S"):
+            calc = 0
+        elif (next_object[0] == "V"):
+            next_velocity = self.roadMap.roadMap[next_id].getVelocitySigma()
+            calc = next_velocity - self.getVelocitySigma()
+        elif (next_object[0] == "I"):
+            calc = 0
+        elif (next_object[0] == "R"):
+            print("HOW IS THE NEXT STOPPABLE OBJECT A ROAD??!!?")
+            calc = 0
+        return (self.beta * calc)
+    
+    def accelerationDeltaSimple(self):
+        next_object = self.getPath()
+        next_id = self.roadMap.lookUp(next_object)
+        if (next_object[0] == "S"):
+            calc = 0
+        elif (next_object[0] == "V"):
+            next_acceleration = self.roadMap.roadMap[next_id].getAccelerationSigma()
+            calc = next_acceleration - self.getAccelerationSigma()
+            if ((self.roadMap.roadMap[next_id].acceleration <= 0) and (self.getAccelerationSigma() > 0)): # sign function g(stuff)
+                calc = calc * -1
+        elif (next_object[0] == "I"):
+            calc = 0
+        elif (next_object[0] == "R"):
+            print("HOW IS THE NEXT STOPPABLE OBJECT A ROAD??!!?")
+            calc = 0
+        return (self.gamma * calc)
+    
     def velocityDelta(self):
         calc = 0
         tempCount = 1
-        for vehicle in self.vehiclesSeen:
-            next_id = self.roadMap.lookUp(vehicle)
-            type = self.roadMap.roadMap[next_id].type
-            if (type == "entry_exit"):
-                calc += 0
-            elif ((type == "autonomous") or (type == "human")):
-                temp = self.roadMap.roadMap[next_id].getVelocitySigma()
-                if tempCount == len(self.vehiclesSeen):
-                    multiplier = 1 / ((self.beta)**(tempCount-1))
-                else:
-                    multiplier = (self.beta-1) / ((self.beta)**(tempCount))
-                calc += (multiplier * temp)
-            elif (type == "intersection"):
-                calc += 0
-            elif (type == "road"):
-                print("HOW IS THE NEXT STOPPABLE OBJECT A ROAD??!!?")
-                calc += 0
-            tempCount += 1
-        diff = calc - self.getVelocitySigma()
+        if len(self.vehiclesSeen) == 0:
+            diff = self.velocityDeltaSimple()
+        else:
+            for vehicle in self.vehiclesSeen:
+                next_id = self.roadMap.lookUp(vehicle)
+                type = self.roadMap.roadMap[next_id].type
+                if (type == "entry_exit"):
+                    calc += 0
+                elif ((type == "autonomous") or (type == "human")):
+                    temp = self.roadMap.roadMap[next_id].getVelocitySigma() - self.getVelocitySigma()
+                    if tempCount == len(self.vehiclesSeen):
+                        multiplier = self.beta * (1 / ((self.k)**(tempCount-1)))
+                    else:
+                        multiplier = self.beta * ((self.k-1) / ((self.k)**(tempCount)))
+                    calc += (multiplier * temp)
+                elif (type == "intersection"):
+                    calc += 0
+                elif (type == "road"):
+                    print("HOW IS THE NEXT STOPPABLE OBJECT A ROAD??!!?")
+                    calc += 0
+                tempCount += 1
+            if calc == 0:
+                calc = self.getVelocitySigma()
+            #diff = calc - self.getVelocitySigma()
+            diff = calc
         return diff
 
     def accelerationDelta(self):
         calc = 0
         tempCount = 1
-        for vehicle in self.vehiclesSeen:
-            next_id = self.roadMap.lookUp(vehicle)
-            type = self.roadMap.roadMap[next_id].type
-            if (type == "entry_exit"):
-                calc += 0
-            elif ((type == "autonomous") or (type == "human")):
-                temp = self.roadMap.roadMap[next_id].getAccelerationSigma()
-                if tempCount == len(self.vehiclesSeen):
-                    multiplier = 1 / ((self.gamma)**(tempCount-1))
-                else:
-                    multiplier = (self.gamma-1) / ((self.gamma)**(tempCount))
-                calc += (multiplier * temp)
-            elif (type == "intersection"):
-                calc += 0
-            elif (type == "road"):
-                print("HOW IS THE NEXT STOPPABLE OBJECT A ROAD??!!?")
-                calc += 0
-            tempCount += 1
-        diff = ((calc - self.getAccelerationSigma()) * self.accelerationDeltaSign())
+        if len(self.vehiclesSeen) == 0:
+            diff = self.accelerationDeltaSimple()
+        else:
+            for vehicle in self.vehiclesSeen:
+                next_id = self.roadMap.lookUp(vehicle)
+                type = self.roadMap.roadMap[next_id].type
+                if (type == "entry_exit"):
+                    calc += 0
+                elif ((type == "autonomous") or (type == "human")):
+                    temp = self.roadMap.roadMap[next_id].getAccelerationSigma() - self.getAccelerationSigma()
+                    if tempCount == len(self.vehiclesSeen):
+                        multiplier = self.gamma * (1 / ((self.k)**(tempCount-1)))
+                    else:
+                        multiplier = self.gamma * ((self.k-1) / ((self.k)**(tempCount)))
+                    if ((self.roadMap.roadMap[next_id].acceleration <= 0) and (self.acceleration > 0)): # acceleration delta sign g(stuff)
+                        temp = temp * -1
+                    calc += (multiplier * temp)
+                elif (type == "intersection"):
+                    calc += 0
+                elif (type == "road"):
+                    print("HOW IS THE NEXT STOPPABLE OBJECT A ROAD??!!?")
+                    calc += 0
+                tempCount += 1
+            if calc == 0:
+                calc = self.getAccelerationSigma()
+            #diff = ((calc - self.getAccelerationSigma()))
+            diff = calc
         return diff
-    
-    def accelerationDeltaSign(self):
-        return 1
 
     def cascade(self):
         if (self.roadSection[0] == "I"):
@@ -418,4 +481,6 @@ class Autonomous(Vehicle):
                 anotherCounter -= 1
 
             self.vehiclesSeen = self.vehiclesOnPath[0:anotherCounter+1]
+            if self.id in self.vehiclesSeen:
+                self.vehiclesSeen.remove(self.id) # fix some dodginess with more dodginess??
             return self.vehiclesSeen
