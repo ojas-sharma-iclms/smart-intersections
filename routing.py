@@ -1,6 +1,9 @@
 ''' Smart Intersections - Simulation of human-driven and autonomous vehicles in a city environment.
     Copyright (C) 2024 Ojas Sharma
 
+    Special thanks to Kai Legum for extensive help in the early logical stages of the implementation
+    of the governing equations.
+
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
